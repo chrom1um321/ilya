@@ -1,0 +1,159 @@
+import logging
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import ReplyKeyboardMarkup, KeyboardButton
+
+# Настройки бота
+TOKEN = 'YOUR_BOT_TOKEN'
+
+# Настройки игры
+GAME_NAME = 'Тапалка'
+GAME_DESCRIPTION = 'Игра в Телеграмме'
+
+# Клавиатура для игры
+game_keyboard = ReplyKeyboardMarkup([
+    [KeyboardButton('Играть')],
+    [KeyboardButton('Правила')],
+    [KeyboardButton('Выход')]
+])
+
+# Класс игрока
+class Player:
+    def __init__(self, id):
+        self.id = id
+        self.balance = 100
+        self.level = 1
+        self.experience = 0
+        self.referrals = []
+
+# Класс реферала
+class Referral:
+    def __init__(self, id, user_id):
+        self.id = id
+        self.user_id = user_id
+
+# Класс игры
+class Game:
+    def __init__(self):
+        self.players = {}
+        self.referrals = {}
+
+    def add_player(self, player):
+        self.players[player.id] = player
+
+    def get_player(self, id):
+        return self.players.get(id)
+
+    def add_referral(self, referral):
+        self.referrals[referral.id] = referral
+
+    def get_referral(self, id):
+        return self.referrals.get(id)
+
+# Инициализация бота
+updater = Updater(TOKEN, use_context=True)
+
+# Инициализация игры
+game = Game()
+
+# Функция для генерации реферальной ссылки
+def generate_referral_link(user_id):
+    referral_link = f"https://example.com/referral/{user_id}"
+    return referral_link
+
+# Функция для получения награды за приглашение нового пользователя
+def get_referral_reward(user_id):
+    # Проверяем, есть ли у пользователя рефералы
+    referrals = game.get_referrals(user_id)
+    if referrals:
+        # Если есть, то выдаем награду
+        reward = 100
+        return reward
+    else:
+        return 0
+
+# Функция для просмотра списка рефералов
+def get_referrals(user_id):
+    referrals = game.get_referrals(user_id)
+    return referrals
+
+# Команда для старта игры
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text=GAME_NAME)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=GAME_DESCRIPTION)
+    context.bot.send_message(chat_id=update.effective_chat.id, text='Играть?', reply_markup=game_keyboard)
+
+# Команда для игры
+def play(update, context):
+    player = game.get_player(update.effective_user.id)
+    if player:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы уже играете!')
+    else:
+        player = Player(update.effective_user.id)
+        game.add_player(player)
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы начали играть!')
+
+# Команда для вывода баланса
+def balance(update, context):
+    player = game.get_player(update.effective_user.id)
+    if player:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=f'Ваш баланс: {player.balance}')
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы не играете!')
+
+# Команда для вывода уровня
+def level(update, context):
+    player = game.get_player(update.effective_user.id)
+    if player:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=f'Ваш уровень: {player.level}')
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы не играете!')
+
+# Команда для вывода реферальной ссылки
+def referral_link(update, context):
+    player = game.get_player(update.effective_user.id)
+    if player:
+        referral_link = generate_referral_link(player.id)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=f'Ваша реферальная ссылка: {referral_link}')
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы не играете!')
+
+# Команда для вывода списка рефералов
+def referrals(update, context):
+    player = game.get_player(update.effective_user.id)
+    if player:
+        referrals = get_referrals(player.id)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=f'Ваши рефералы: {referrals}')
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы не играете!')
+
+# Обработчик сообщений
+def message_handler(update, context):
+    text = update.message.text
+    if text == 'Играть':
+        play(update, context)
+    elif text == 'Правила':
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Правила игры')
+    elif text == 'Выход':
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вы вышли из игры!')
+    elif text == 'Баланс':
+        balance(update, context)
+    elif text == 'Уровень':
+        level(update, context)
+    elif text == 'Реферальная ссылка':
+        referral_link(update, context)
+    elif text == 'Рефералы':
+        referrals(update, context)
+
+# Регистрация команд
+dp = updater.dispatcher
+dp.add_handler(CommandHandler('start', start))
+dp.add_handler(CommandHandler('play', play))
+dp.add_handler(CommandHandler('balance', balance))
+dp.add_handler(CommandHandler('level', level))
+dp.add_handler(CommandHandler('referral_link', referral_link))
+dp.add_handler(CommandHandler('referrals', referrals))
+dp.add_handler(MessageHandler(Filters.text, message_handler))
+
+# Запуск бота
+updater.start_polling()
+updater.idle()
